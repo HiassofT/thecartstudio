@@ -1,0 +1,203 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<project default="all" name="Build all parts and create ZIPs for The!Cart Studio (daily version) in the productions folder">
+
+	<!--ANT 1.7 is required  -->
+	<target name="all">
+
+		<antcall target="create_binaries" />
+		<antcall target="create_jar" />
+		<antcall target="create_executables" />
+<!--
+		<antcall target="create_sample_files" />
+		<antcall target="create_productions" />
+-->
+	</target>
+
+	<target name="init">
+		<property name="toolsFolder" value="../../wudsn-base-git" />
+		<property name="examplesFolder" value="../../Examples" />
+		<property name="productionsFolder" value="../../Productions" />
+	</target>
+
+	<target name="create_binaries" depends="init">
+
+		<!-- Assemble studio unit test files -->
+		<exec executable="sh">
+			<arg value="asm/thecart-studio/build.sh" />
+		</exec>
+
+		<!-- Assemble actual menu files -->
+		<exec executable="sh">
+			<arg value="asm/thecart-menu/build.sh" />
+		</exec>
+
+		<!-- Copy latest expert and extended cartmenu from "asm" folder to "data" in both "src" and "bin" folder -->
+		<copy todir="src/data" overwrite="true">
+			<fileset file="asm/thecart-software/cartmenu.rom" />
+			<fileset file="asm/thecart-menu/cartmenu-extended.rom" />
+		</copy>
+		<copy todir="bin/data" overwrite="true">
+			<fileset file="asm/thecart-software/cartmenu.rom" />
+			<fileset file="asm/thecart-menu/cartmenu-extended.rom" />
+		</copy>
+
+	</target>
+
+	<target name="create_jar" depends="init">
+		<!-- The Java part must have been build and the binaries must have been assembled separtely before -->
+
+		<!-- Create ".version" file in "bin" folder and set "version" property -->
+		<exec executable="date">
+			<arg value="+%Y-%m-%d %H:%M:%S" />
+			<redirector output="bin/com/wudsn/tools/thecartstudio/TheCartStudio.version" />
+		</exec>
+		<loadfile property="version" srcFile="bin/com/wudsn/tools/thecartstudio/TheCartStudio.version" />
+
+		<mkdir dir="tst/out" />
+		<!-- Remove unwanted temporary files -->
+		<delete>
+			<fileset dir="tst/out">
+				<include name="*" />
+			</fileset>
+		</delete>
+
+		<!-- Create JAR file -->
+		<jar destfile="tst/out/TheCartStudio.jar" filesetmanifest="merge">
+			<manifest>
+				<attribute name="Main-Class" value="com.wudsn.tools.thecartstudio.TheCartStudio" />
+				<attribute name="Class-Path" value="." />
+			</manifest>
+			<fileset dir="${toolsFolder}/com.wudsn.tools.base/bin" />
+			<fileset dir="${toolsFolder}/com.wudsn.tools.base.atari/bin" />
+			<fileset dir="${toolsFolder}/com.wudsn.tools.base.atari.cartridge/bin" />
+			<fileset dir="bin" />
+		</jar>
+
+	</target>
+
+	<!-- ANT 1.7 is required  -->
+	<target name="create_executables" depends="init">
+
+		<tstamp>
+			<format property="currentYear" pattern="yyyy" locale="en,US" />
+		</tstamp>
+
+		<property name="applicationFolder" location="." />
+		<property name="applicationName" value="TheCartStudio" />
+		<property name="applicationNameLowerCase" value="thecartstudio" />
+		<property name="applicationTitle" value="The!Cart Studio" />
+		<property name="applicationSupportURL" value="https://www.wudsn.com/index.php/productions-atari800/tools/thecartstudio" />
+		<property name="applicationHeaderType" value="gui" />
+		<property name="applicationMainClass" value="com.wudsn.tools.thecartstudio.TheCartStudio" />
+		<property name="applicationBinFolder" location="tst/out/bin" />
+		<property name="applicationLibFolder" location="tst/out" />
+		<property name="applicationLibList" value="TheCartStudio.jar" />
+		<property name="applicationPlatformLib" value="" />
+
+		<property name="applicationPlatformTextFile" location="${applicationBinFolder}/com/wudsn/tools/thecartstudio/TheCartStudio.os" />
+		<property name="iconFilePath" location="icons\application.ico" />
+		<property name="icnsFilePath" location="icons\application.icns" />
+		<property name="authors" value="Peter Dell" />
+		<property name="releaseYears" value="2019 - ${currentYear}" />
+		<property name="release" value="1.0.0" />
+		<property name="version" value="Daily" />
+		<property name="jreMinVersion" value="1.8.0" />
+		<property name="outFolder" value="${applicationFolder}/tst/out" />
+
+		<property name="buildFolder" location="${toolsFolder}/com.wudsn.tools.base.standalone" />
+
+		<ant dir="${buildFolder}" antfile="build/Makefile-Hias.ant" target="create_standalone_executables">
+		</ant>
+	</target>
+
+	<target name="create_sample_files" depends="init">
+		<property name="studioFolder" value="../../" />
+		<property name="studio.jar" value="tst/out/TheCartStudio.jar" />
+		<property name="examplesFolder" value="${studioFolder}/Examples" />
+		<property name="unitTestsFolder" value="${examplesFolder}/UnitTests" />
+
+		<mkdir dir="${unitTestsFolder}" />
+		<java jar="${studio.jar}" fork="true">
+			<arg value="-createSampleFiles:${unitTestsFolder}" />
+		</java>
+
+		<antcall target="update_sample_workbook">
+			<param name="workbook" value="CAR-Correct-Supported-128MB" />
+		</antcall>
+		<antcall target="update_sample_workbook">
+			<param name="workbook" value="CAR-Correct-UnitTests-32MB" />
+		</antcall>
+		<antcall target="update_sample_workbook">
+			<param name="workbook" value="CAR-Correct-UnitTests-64MB" />
+		</antcall>
+		<antcall target="update_sample_workbook">
+			<param name="workbook" value="CAR-Correct-UnitTests-128MB" />
+		</antcall>
+	</target>
+
+	<target name="update_sample_workbook" depends="init">
+		<mkdir dir="${examplesFolder}/Workbooks" />
+		<mkdir dir="${examplesFolder}/Exports" />
+		<copy todir="${examplesFolder}/Workbooks/${workbook}.tcd" overwrite="true">
+			<fileset dir="${unitTestsFolder}/CAR-Correct-Supported" />
+		</copy>
+
+		<java jar="${studio.jar}" fork="true">
+			<arg value="-open:${examplesFolder}/Workbooks/${workbook}.tcw" />
+			<arg value="-exportToCarImage:${examplesFolder}/Exports/${workbook}.car " />
+		</java>
+	</target>
+
+	<target name="create_productions" depends="init">
+		<fail unless="examplesFolder" />
+		<fail unless="productionsFolder" />
+
+		<!-- ZIP code and source from Eclipse workspace to "productions" folder -->
+		<property name="productionFolder" value="${productionsFolder}\atari800\thecartstudio-daily" />
+		<echo message="Productions folder ${productionsFolder}" />
+		<echo message="Production folder ${productionFolder}" />
+
+		<zip destfile="${productionFolder}\thecartstudio.zip">
+			<fileset dir="tst/out" excludes="bin/**" />
+		</zip>
+
+		<zip destfile="${productionFolder}\thecartstudio-source.zip">
+			<fileset dir="${toolsFolder}/com.wudsn.tools.base" excludes="bin/**" />
+			<fileset dir="../com.wudsn.productions.atari800.thecartstudio" excludes="bin/**, mail/**, tst/**" />
+		</zip>
+
+		<!-- ZIP unit test workbooks from workbooks and exports folder to "productions" folder -->
+		<zip destfile="${productionFolder}\thecartstudio-test.zip">
+			<fileset dir="${examplesFolder}\Workbooks" includes="CAR-Correct-UnitTests-**    CAR-Correct-UnitTests-**/**" />
+			<fileset dir="${examplesFolder}\Exports" includes="CAR-Correct-UnitTests-*.car CAR-Correct-UnitTests-*.txt" />
+			<fileset dir="${examplesFolder}\Workbooks" includes="ROM-Correct-*-Atarimax-*.mcw" />
+			<fileset dir="${examplesFolder}\Exports" includes="ROM-Correct-*-Atarimax-*.car" />
+		</zip>
+
+		<!-- Copy help from Eclipse workspace to "productions" folder -->
+		<copy todir="${productionFolder}\help" overwrite="true">
+			<fileset dir="src/help" />
+		</copy>
+
+		<!-- Merge version from ".version file" into help file -->
+		<loadfile property="version" srcFile="bin\com\wudsn\tools\thecartstudio\TheCartStudio.version" />
+		<echo message="${version}" />
+		<replace file="${productionFolder}\help\TheCartStudio.html">
+			<replacefilter token="$${version}" value="${version}" />
+		</replace>
+
+		<!-- Font size definition 12px must be corrected for display in browsers -->
+		<!-- Because the formatter break the line containing token="font-size: 14px", the short for is used-->
+		<replace file="${productionFolder}\help\TheCartStudio.html" token="12px;" value="14px">
+		</replace>
+
+		<echo message="Opening ${productionFolder}. You can ignore the RC 1 below." />
+		<!--
+		<exec executable="explorer.exe" resultproperty="explorerReturnCode">
+			<arg value="${productionFolder}" />
+		</exec>
+		-->
+		<echo message="Files in the ${productionFolder} folder are ready for upload." />
+
+	</target>
+</project>
