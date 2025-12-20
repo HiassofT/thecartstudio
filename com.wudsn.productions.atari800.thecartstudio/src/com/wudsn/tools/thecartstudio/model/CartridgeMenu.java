@@ -584,6 +584,13 @@ public final class CartridgeMenu {
 				// greater
 				// then 8k.
 				int initialBankNumber = workbookEntry.getContentType().getCartridgeType().getInitialBankNumber();
+				// thecart-software expects the bank numbers to be in 8k units so the
+				// initialBankNumber (eg 254 for 4MB MegaCart) needs to be multiplied by 2
+				// to get the correct offset as thecart-menu just adds this value to
+				// the start bank number
+				if (workbookEntry.getContentType().getCartridgeType().getBankSize() == 0x4000) {
+					initialBankNumber = initialBankNumber * 2;
+				}
 				offset = entryOffset + Offsets.MENU_ENTRY_INITIAL_BANK_NUMBER;
 				setWord(result, offset, initialBankNumber);
 
